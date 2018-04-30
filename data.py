@@ -44,7 +44,7 @@ class Vocabulary:
         self.idx2char = {v: k for k, v in self.char2idx.items()}
 
     def __call__(self, chars):
-        return np.array([self.char2idx[char] for char in chars])
+        return np.array([self.char2idx[char] for char in chars], dtype=np.int64)
 
     def __len__(self):
         return len(self.char2idx)
@@ -57,4 +57,4 @@ class OneHot:
     def __call__(self, indexes):
         onehot = np.zeros((len(indexes), self.size))
         onehot[np.arange(len(indexes)), indexes] = 1
-        return onehot
+        return onehot.astype(np.float32)

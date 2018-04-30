@@ -51,12 +51,12 @@ def train(epochs, hidden_size, model_name):
 
         running_loss = 0
         for inputs, targets in train_loder:
-            inputs = inputs.transpose(1, 0).float().to(device)
-            targets = targets.transpose(1, 0).long().to(device)
+            inputs = inputs.transpose(1, 0).to(device)
+            targets = targets.transpose(1, 0).to(device)
 
             loss = 0
-            hx = torch.randn(1, hidden_size).to(device)
-            cx = torch.randn(1, hidden_size).to(device)
+            hx = torch.zeros(1, hidden_size).to(device)
+            cx = torch.zeros(1, hidden_size).to(device)
             for input, target in zip(inputs, targets):
                 output, hx, cx = rnn(input, hx, cx)
                 loss += F.nll_loss(output, target)
@@ -75,9 +75,9 @@ def train(epochs, hidden_size, model_name):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', '--epochs', default=50)
+    parser.add_argument('-e', '--epochs', default=20)
     parser.add_argument('-hs', '--hidden_size', default=128)
-    parser.add_argument('-m', '--model_name', default='model_cuda.pt')
+    parser.add_argument('-m', '--model_name', default='model.pt')
     args = parser.parse_args()
 
     train(epochs=args.epochs,
