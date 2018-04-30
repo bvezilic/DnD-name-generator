@@ -17,21 +17,14 @@ class RNN(nn.Module):
         super(RNN, self).__init__()
         self.lstm_cell = nn.LSTMCell(input_size, hidden_size)
         self.dense = nn.Linear(hidden_size, output_size)
-        self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax()
 
-    def forward(self, inputs):
-        hx = torch.randn((1, self.lstm_cell.hidden_size))
-        cx = torch.randn((1, self.lstm_cell.hidden_size))
+    def forward(self, input, hx, cx):
+        hx, cx = self.lstm_cell(input, (hx, cx))
+        logits = self.dense(hx)
+        output = self.softmax(logits)
 
-        outputs = torch.empty_like(inputs)
-        for idx, input in enumerate(inputs):
-            hx, cx = self.lstm_cell(input, (hx, cx))
-            logits = self.dense(hx)
-            output = self.softmax(logits)
-
-            outputs[idx] = output
-
-        return F.softmax(outputs)
+        return output, hx, cx
 
 
 def train(epochs, hidden_size, model_name):
@@ -58,12 +51,17 @@ def train(epochs, hidden_size, model_name):
         optimizer.zero_grad()
 
         running_loss = 0
-        for input, target in train_loder:
-            input = input.transpose(1, 0).float()
-            target = target.squeeze().long()
+        for inputs, targets in train_loder:
+            inputs = inputs.transpose(1, 0).float()
+            targets = targets.transpose(1, 0).long()
 
-            output = rnn(input)
-            loss = F.nll_loss(output, target)
+            loss = 0
+            hx = torch.randn(1, hidden_size)
+            cx = torch.randn(1, hidden_size)
+            for input, target in zip(inputs, targets):
+                output, hx, cx = rnn(input, hx, cx)
+                loss += F.nll_loss(output, target)
+
             loss.backward()
             optimizer.step()
 
