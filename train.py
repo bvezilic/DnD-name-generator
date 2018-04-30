@@ -16,11 +16,12 @@ class RNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(RNN, self).__init__()
         self.lstm_cell = nn.LSTMCell(input_size, hidden_size)
+        self.dropout = nn.Dropout(0.2)
         self.dense = nn.Linear(hidden_size, output_size)
 
     def forward(self, input, hx, cx):
         hx, cx = self.lstm_cell(input, (hx, cx))
-        logits = self.dense(hx)
+        logits = self.dense(self.dropout(hx))
         output = F.softmax(logits, dim=-1)
 
         return output, hx, cx
@@ -32,7 +33,8 @@ def train(epochs, hidden_size, model_name):
     train_loder = DataLoader(dataset=DnDCharacterNameDataset(root_dir="./data",
                                                              transform=Compose([vocab,
                                                                                 OneHot(len(vocab))]),
-                                                             target_transform=Compose([vocab])))
+                                                             target_transform=Compose([vocab])),
+                             shuffle=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

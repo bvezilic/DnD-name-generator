@@ -12,6 +12,7 @@ def generate(model_name):
 
     rnn = torch.load(osp.join('models', model_name))
     rnn.to('cpu')
+    rnn.eval()
 
     with torch.no_grad():
         hx = torch.zeros(1, rnn.lstm_cell.hidden_size)
