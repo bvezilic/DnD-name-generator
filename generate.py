@@ -1,6 +1,7 @@
 from torch.distributions import Categorical
 import torch
 
+
 def sample():
     pass
 

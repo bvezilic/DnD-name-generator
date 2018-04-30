@@ -17,12 +17,11 @@ class RNN(nn.Module):
         super(RNN, self).__init__()
         self.lstm_cell = nn.LSTMCell(input_size, hidden_size)
         self.dense = nn.Linear(hidden_size, output_size)
-        self.softmax = nn.Softmax()
 
     def forward(self, input, hx, cx):
         hx, cx = self.lstm_cell(input, (hx, cx))
         logits = self.dense(hx)
-        output = self.softmax(logits)
+        output = F.softmax(logits, dim=-1)
 
         return output, hx, cx
 
@@ -33,14 +32,14 @@ def train(epochs, hidden_size, model_name):
     train_loder = DataLoader(dataset=DnDCharacterNameDataset(root_dir="./data",
                                                              transform=Compose([vocab,
                                                                                 OneHot(len(vocab))]),
-                                                             target_transform=Compose([vocab,
-                                                                                       OneHot(len(vocab))])))
+                                                             target_transform=Compose([vocab])))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     rnn = RNN(input_size=len(vocab),
               hidden_size=hidden_size,
               output_size=len(vocab))
+    rnn.to(device)
 
     optimizer = RMSprop(rnn.parameters())
 
@@ -52,12 +51,12 @@ def train(epochs, hidden_size, model_name):
 
         running_loss = 0
         for inputs, targets in train_loder:
-            inputs = inputs.transpose(1, 0).float()
-            targets = targets.transpose(1, 0).long()
+            inputs = inputs.transpose(1, 0).float().to(device)
+            targets = targets.transpose(1, 0).long().to(device)
 
             loss = 0
-            hx = torch.randn(1, hidden_size)
-            cx = torch.randn(1, hidden_size)
+            hx = torch.randn(1, hidden_size).to(device)
+            cx = torch.randn(1, hidden_size).to(device)
             for input, target in zip(inputs, targets):
                 output, hx, cx = rnn(input, hx, cx)
                 loss += F.nll_loss(output, target)
@@ -76,7 +75,7 @@ def train(epochs, hidden_size, model_name):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', '--epochs', default=100)
+    parser.add_argument('-e', '--epochs', default=50)
     parser.add_argument('-hs', '--hidden_size', default=128)
     parser.add_argument('-m', '--model_name', default='model_cuda.pt')
     args = parser.parse_args()
