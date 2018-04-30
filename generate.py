@@ -17,6 +17,7 @@ def generate(model_name):
         hx = torch.zeros(1, rnn.lstm_cell.hidden_size)
         cx = torch.zeros(1, rnn.lstm_cell.hidden_size)
         outputs = []
+
         while True:
             input = torch.tensor(one_hot([0]))
 
@@ -27,7 +28,7 @@ def generate(model_name):
             char = vocab.idx2char[index.item()]
             outputs.append(char)
 
-            if char == '<EOS>' or len(outputs) == 50:
+            if char == '\n' or len(outputs) == 50:
                 break
 
     print("Generated name:")

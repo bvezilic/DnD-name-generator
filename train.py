@@ -75,8 +75,8 @@ def train(epochs, hidden_size, model_name):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', '--epochs', default=20)
-    parser.add_argument('-hs', '--hidden_size', default=128)
+    parser.add_argument('-e', '--epochs', default=10)
+    parser.add_argument('-hs', '--hidden_size', default=32)
     parser.add_argument('-m', '--model_name', default='model.pt')
     args = parser.parse_args()
 

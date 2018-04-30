@@ -17,8 +17,8 @@ class DnDCharacterNameDataset(Dataset):
         for filename in self.files:
             with open(osp.join(root_dir, filename), 'r') as f:
                 names = f.read().lower().replace(',', '').split()
-                self.train_data.extend([["<EOS>"] + list(name) for name in names])
-                self.target_data.extend([list(name) + ["<EOS>"] for name in names])
+                self.train_data.extend([["\n"] + list(name) for name in names])
+                self.target_data.extend([list(name) + ["\n"] for name in names])
 
     def __len__(self):
         return len(self.train_data)
@@ -37,10 +37,10 @@ class DnDCharacterNameDataset(Dataset):
 
 
 class Vocabulary:
-    def __init__(self):
+    def __init__(self, end_char='\n'):
         alphabet = string.ascii_lowercase
         self.char2idx = dict(zip(alphabet, range(1, len(alphabet) + 1)))
-        self.char2idx["<EOS>"] = 0
+        self.char2idx[end_char] = 0
         self.idx2char = {v: k for k, v in self.char2idx.items()}
 
     def __call__(self, chars):
