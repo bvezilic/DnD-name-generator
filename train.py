@@ -1,52 +1,78 @@
 import os
+import os.path as osp
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import RMSprop
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
+
 from torchvision.transforms import Compose
+
 from data import DnDCharacterNameDataset, Vocabulary, OneHot
 
 
-def train(args):
+class RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(RNN, self).__init__()
+        self.lstm_cell = nn.LSTMCell(input_size, hidden_size)
+        self.dense = nn.Linear(hidden_size, output_size)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, inputs):
+        hx = torch.randn((1, self.lstm_cell.hidden_size))
+        cx = torch.randn((1, self.lstm_cell.hidden_size))
+
+        outputs = torch.empty_like(inputs)
+        for idx, input in enumerate(inputs):
+            hx, cx = self.lstm_cell(input, (hx, cx))
+            logits = self.dense(hx)
+            output = self.softmax(logits)
+
+            outputs[idx] = output
+
+        return F.softmax(outputs)
+
+
+def train(epochs, hidden_size, model_name):
     vocab = Vocabulary()
 
     train_loder = DataLoader(dataset=DnDCharacterNameDataset(root_dir="./data",
                                                              transform=Compose([vocab,
                                                                                 OneHot(len(vocab))]),
-                                                             target_transform=Compose([vocab])))
+                                                             target_transform=Compose([vocab,
+                                                                                       OneHot(len(vocab))])))
 
-    rnn = nn.LSTMCell(input_size=len(vocab),
-                      hidden_size=args.hidden_size)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    rnn = RNN(input_size=len(vocab),
+              hidden_size=hidden_size,
+              output_size=len(vocab))
 
     optimizer = RMSprop(rnn.parameters())
 
-    for epoch in range(args.epochs):
-        print("Epoch {}/{}".format(epoch+1, args.epochs))
+    for epoch in range(epochs):
+        print("Epoch {}/{}".format(epoch+1, epochs))
         print('-' * 10)
+
         optimizer.zero_grad()
 
         running_loss = 0
-        for inputs, targets in train_loder:
-            loss = 0
-            hx = Variable(torch.randn(1, args.hidden_size))
-            cx = Variable(torch.randn(1, args.hidden_size))
-            for input, target in zip(inputs[0], targets[0]):
-                input, taget = Variable(input).float(), Variable(torch.LongTensor([target]))
+        for input, target in train_loder:
+            input = input.transpose(1, 0).float()
+            target = target.squeeze().long()
 
-                hx, cx = rnn(input, (hx, cx))
-                loss += F.cross_entropy(hx, target)
-
+            output = rnn(input)
+            loss = F.nll_loss(output, target)
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.data[0]
+            running_loss += loss.item()
 
         print("Loss {:.4f}\n".format(running_loss/len(train_loder)))
 
     os.makedirs("./models", exist_ok=True)
-    torch.save(rnn, "models/" + args.model_name)
+    torch.save(rnn, osp.join("models", model_name))
 
 
 if __name__ == '__main__':
@@ -57,4 +83,6 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--model_name', default='model_cuda.pt')
     args = parser.parse_args()
 
-    train(args)
+    train(epochs=args.epochs,
+          hidden_size=args.hidden_size,
+          model_name=args.model_name)
