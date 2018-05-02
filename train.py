@@ -3,7 +3,6 @@ import os.path as osp
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.optim import RMSprop
 from torch.utils.data import DataLoader
 
@@ -22,9 +21,8 @@ class RNN(nn.Module):
     def forward(self, input, hx, cx):
         hx, cx = self.lstm_cell(input, (hx, cx))
         logits = self.dense(self.dropout(hx))
-        output = F.softmax(logits, dim=-1)
 
-        return output, hx, cx
+        return logits, hx, cx
 
 
 def train(epochs, hidden_size, model_name):
@@ -43,6 +41,7 @@ def train(epochs, hidden_size, model_name):
               output_size=len(vocab))
     rnn.to(device)
 
+    criterion = nn.CrossEntropyLoss()
     optimizer = RMSprop(rnn.parameters())
 
     for epoch in range(epochs):
@@ -61,7 +60,7 @@ def train(epochs, hidden_size, model_name):
             cx = torch.zeros(1, hidden_size).to(device)
             for input, target in zip(inputs, targets):
                 output, hx, cx = rnn(input, hx, cx)
-                loss += F.nll_loss(output, target)
+                loss += criterion(output, target)
 
             loss.backward()
             optimizer.step()
@@ -71,15 +70,16 @@ def train(epochs, hidden_size, model_name):
         print("Loss {:.4f}\n".format(running_loss/len(train_loder)))
 
     os.makedirs("./models", exist_ok=True)
-    torch.save(rnn, osp.join("models", model_name))
+    torch.save(rnn.to("cpu"), osp.join("models", model_name))
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', '--epochs', default=10)
-    parser.add_argument('-hs', '--hidden_size', default=32)
-    parser.add_argument('-m', '--model_name', default='model.pt')
+    parser.add_argument("-e", "--epochs", default=300)
+    parser.add_argument("-hs", "--hidden_size", default=64)
+    parser.add_argument("-lr", "--learning_rate", default=0.0005)
+    parser.add_argument("-m", "--model_name", default="model2.pt")
     args = parser.parse_args()
 
     train(epochs=args.epochs,
