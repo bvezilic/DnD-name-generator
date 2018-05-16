@@ -17,14 +17,14 @@ def generate(model_name):
     with torch.no_grad():
         hx = torch.zeros(1, rnn.lstm_cell.hidden_size)
         cx = torch.zeros(1, rnn.lstm_cell.hidden_size)
-        outputs = []
+        input = torch.tensor(one_hot([21]))
+        outputs = [vocab.idx2char[torch.argmax(input).item()]]
 
         while True:
-            input = torch.tensor(one_hot([0]))
-
             output, hx, cx = rnn(input, hx, cx)
 
-            sample = OneHotCategorical(output).sample()
+            sample = OneHotCategorical(logits=output).sample()
+            input = sample
             index = torch.argmax(sample)
             char = vocab.idx2char[index.item()]
             outputs.append(char)

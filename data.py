@@ -17,8 +17,8 @@ class DnDCharacterNameDataset(Dataset):
         for filename in self.files:
             with open(osp.join(root_dir, filename), 'r') as f:
                 names = f.read().lower().replace(',', '').split()
-                self.train_data.extend([["\n"] + list(name) for name in names])
-                self.target_data.extend([list(name) + ["\n"] for name in names])
+                self.train_data.extend([list(name) for name in names])
+                self.target_data.extend([list(name[1:]) + ["\n"] for name in names])
 
     def __len__(self):
         return len(self.train_data)
