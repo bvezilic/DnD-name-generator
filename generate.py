@@ -1,9 +1,9 @@
 import os.path as osp
-from torch.distributions import OneHotCategorical
+
 import torch
+from torch.distributions import OneHotCategorical
 
 from data import Vocabulary, OneHot
-from train import RNN
 
 
 def generate(model_name):
