@@ -2,7 +2,6 @@ import glob
 import os.path as osp
 import string
 
-import torch
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -88,13 +87,16 @@ class Genders:
 
 class Vocabulary:
     def __init__(self, end_char='.'):
-        alphabet = string.ascii_letters
+        alphabet = string.ascii_letters + '-'
         self.char2idx = dict(zip(alphabet, range(1, len(alphabet) + 1)))
         self.char2idx[end_char] = 0
         self.idx2char = {v: k for k, v in self.char2idx.items()}
 
     def __len__(self):
         return len(self.char2idx)
+
+    def __getitem__(self, item):
+        return self.char2idx.get(item)
 
     def __call__(self, chars):
         return np.array([self.char2idx[char] for char in chars], dtype=np.int64)
