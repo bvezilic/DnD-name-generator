@@ -45,6 +45,7 @@ def generate(num_samples=5, **kwargs):
     onehot_gender = kwargs['onehot_gender']
 
     with torch.no_grad():
+        print("_" * 20)
         for _ in range(num_samples):
             hx, cx = rnn.init_states(device)
 
@@ -80,9 +81,10 @@ def generate(num_samples=5, **kwargs):
                 if char == '.' or len(outputs) == 50:
                     break
 
+            print("Start letter: {}, Race: {}, Gender: {}".format(letter, race, gender))
+            print("Generated sample: {}".format(''.join(map(str, outputs))))
+
         print("_" * 20)
-        print("Start letter: {}, Race: {}, Gender: {}".format(letter, race, gender))
-        print("Generated sample: {}".format(''.join(map(str, outputs))))
 
 
 def train(epochs, hidden_size, model_name):

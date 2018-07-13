@@ -31,28 +31,26 @@ class DnDCharacterNameDataset(Dataset):
         return len(self.train_data)
 
     def __getitem__(self, i):
+        sample = {}
         train = self.train_data[i]
         target = self.target_data[i]
 
         if self.name_transform:
-            train['name'] = self.name_transform(train['name'])
+            sample['name'] = self.name_transform(train['name'])
 
         if self.race_transform:
-            train['race'] = self.race_transform(train['race'])
+            sample['race'] = self.race_transform(train['race'])
 
         if self.gender_transform:
-            train['gender'] = self.gender_transform(train['gender'])
+            sample['gender'] = self.gender_transform(train['gender'])
 
         if self.target_transform:
             target = self.target_transform(target)
 
-        return train, target
+        return sample, target
 
     def __str__(self):
-        samples = []
-        for i in range(5):
-            samples.append(self.train_data[i])
-
+        samples = [self.train_data[i] for i in range(5)]
         return str(samples)
 
 
