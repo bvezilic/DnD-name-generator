@@ -1,8 +1,9 @@
 import glob
 import os.path as osp
 import string
-
+import torch
 import numpy as np
+
 from torch.utils.data import Dataset
 
 
@@ -108,6 +109,11 @@ class OneHot:
         onehot = np.zeros((len(indexes), self.size), dtype=np.float32)
         onehot[np.arange(len(indexes)), indexes] = 1
         return onehot
+
+
+class ToTensor:
+    def __call__(self, data):
+        return torch.Tensor(data)
 
 
 if __name__ == '__main__':
