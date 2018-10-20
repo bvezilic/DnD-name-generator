@@ -1,15 +1,22 @@
+import copy
 import glob
 import os.path as osp
 import string
-import torch
-import numpy as np
 
+import numpy as np
+import torch
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
 
 class DnDCharacterNameDataset(Dataset):
-    def __init__(self, root_dir, name_transform=None, race_transform=None, gender_transform=None,
-                 target_transform=None, end_char='.'):
+    def __init__(self, root_dir,
+                 name_transform=None,
+                 race_transform=None,
+                 gender_transform=None,
+                 target_transform=None,
+                 end_char='.'):
+
         self.root_dir = root_dir
         self.name_transform = name_transform
         self.race_transform = race_transform
@@ -32,27 +39,39 @@ class DnDCharacterNameDataset(Dataset):
         return len(self.train_data)
 
     def __getitem__(self, i):
-        sample = {}
-        train = self.train_data[i]
-        target = self.target_data[i]
+        train = copy.deepcopy(self.train_data[i])
+        target = copy.deepcopy(self.target_data[i])
 
         if self.name_transform:
-            sample['name'] = self.name_transform(train['name'])
+            train['name'] = self.name_transform(train['name'])
 
         if self.race_transform:
-            sample['race'] = self.race_transform(train['race'])
+            train['race'] = self.race_transform(train['race'])
 
         if self.gender_transform:
-            sample['gender'] = self.gender_transform(train['gender'])
+            train['gender'] = self.gender_transform(train['gender'])
 
         if self.target_transform:
             target = self.target_transform(target)
 
-        return sample, target
+        return train, target
 
     def __str__(self):
         samples = [self.train_data[i] for i in range(5)]
         return str(samples)
+
+    @staticmethod
+    def collate_fn(batch):
+        inputs, target = zip(*batch)
+        inputs = [torch.cat([sample['name'], sample['race'], sample['gender']], 1) for sample in inputs]
+
+        inputs = sorted(inputs, key=lambda x: x.shape[0], reverse=True)
+        inputs = pad_sequence(inputs, padding_value=-1)
+
+        target = sorted(target, key=lambda x: x.shape[0], reverse=True)
+        target = pad_sequence(target, padding_value=-1)
+
+        return inputs, target
 
 
 class Races:
@@ -69,6 +88,10 @@ class Races:
     def __call__(self, items):
         return [self.races.get(item) for item in items]
 
+    @property
+    def size(self):
+        return len(self)
+
 
 class Genders:
     def __init__(self):
@@ -82,6 +105,10 @@ class Genders:
 
     def __call__(self, items):
         return [self.genders.get(item) for item in items]
+
+    @property
+    def size(self):
+        return len(self)
 
 
 class Vocabulary:
@@ -100,6 +127,10 @@ class Vocabulary:
     def __call__(self, chars):
         return np.array([self.char2idx[char] for char in chars], dtype=np.int64)
 
+    @property
+    def size(self):
+        return len(self)
+
 
 class OneHot:
     def __init__(self, size):
@@ -112,10 +143,8 @@ class OneHot:
 
 
 class ToTensor:
+    def __init__(self, dtype=None):
+        self.dtype = dtype
+
     def __call__(self, data):
-        return torch.Tensor(data)
-
-
-if __name__ == '__main__':
-    dataset = DnDCharacterNameDataset(root_dir='data')
-    print(dataset)
+        return torch.tensor(data, dtype=self.dtype)

@@ -16,8 +16,8 @@ class RNN(nn.Module):
 
         return logits, hx, cx
 
-    def init_states(self, device):
-        hx = torch.zeros(1, self.hidden_size).to(device)
-        cx = torch.zeros(1, self.hidden_size).to(device)
+    def init_states(self, batch_size, device):
+        hx = torch.zeros(batch_size, self.hidden_size).to(device)
+        cx = torch.zeros(batch_size, self.hidden_size).to(device)
 
         return hx, cx
