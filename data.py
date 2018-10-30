@@ -5,7 +5,7 @@ import string
 
 import numpy as np
 import torch
-from torch.nn.utils.rnn import pad_sequence
+from torch.nn.utils.rnn import pad_sequence, pack_sequence
 from torch.utils.data import Dataset
 
 
@@ -62,16 +62,16 @@ class DnDCharacterNameDataset(Dataset):
 
     @staticmethod
     def collate_fn(batch):
-        inputs, target = zip(*batch)
+        batch = sorted(batch, key=lambda x: x[1].shape[0], reverse=True)
+
+        inputs, targets = zip(*batch)
         inputs = [torch.cat([sample['name'], sample['race'], sample['gender']], 1) for sample in inputs]
+        lengths = [input.shape[0] for input in inputs]
 
-        inputs = sorted(inputs, key=lambda x: x.shape[0], reverse=True)
-        inputs = pad_sequence(inputs, padding_value=-1)
+        inputs = pad_sequence(inputs, padding_value=0, batch_first=True)
+        targets = pad_sequence(targets, padding_value=-1, batch_first=True)
 
-        target = sorted(target, key=lambda x: x.shape[0], reverse=True)
-        target = pad_sequence(target, padding_value=-1)
-
-        return inputs, target
+        return inputs, targets, lengths
 
 
 class Races:

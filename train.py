@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
 from data import DnDCharacterNameDataset, Vocabulary, OneHot, Genders, Races, ToTensor
-from model import RNN
+from model import RNNCellModel, RNNLayerModel
 from utils import save_model
 
 
@@ -23,10 +23,10 @@ class RNNTrainer:
 
         self.rnn = None
 
-    def init_rnn(self, hidden_size):
-        self.rnn = RNN(input_size=len(self.vocab) + len(self.races) + len(self.genders),
-                       hidden_size=hidden_size,
-                       output_size=len(self.vocab))
+    def init_rnn(self, rnn_class, hidden_size):
+        self.rnn = rnn_class(input_size=len(self.vocab) + len(self.races) + len(self.genders),
+                             hidden_size=hidden_size,
+                             output_size=len(self.vocab))
         self.rnn.to(self.device)
 
     def train(self):
@@ -36,6 +36,45 @@ class RNNTrainer:
                                           gender_transform=Compose([self.genders, OneHot(self.genders.size), ToTensor()]),
                                           target_transform=Compose([self.vocab, ToTensor()]))
 
+        if isinstance(self.rnn, RNNLayerModel):
+            self.train_rnn_layer(dataset)
+        else:
+            train_loder = DataLoader(dataset=dataset,
+                                     batch_size=self.batch_size,
+                                     shuffle=True,
+                                     collate_fn=lambda batch: dataset.collate_fn(batch, pad=True))
+
+            criterion = nn.CrossEntropyLoss(ignore_index=-1)
+            optimizer = RMSprop(self.rnn.parameters())
+
+            for epoch in range(self.epochs):
+                print("Epoch {}/{}".format(epoch + 1, self.epochs))
+                print('-' * 10)
+
+                optimizer.zero_grad()
+
+                running_loss = 0
+                for inputs, targets in train_loder:
+                    inputs = inputs.to(self.device)
+                    targets = targets.to(self.device)
+
+                    loss = 0
+                    hx, cx = self.rnn.init_states(batch_size=inputs.shape[1], device=self.device)
+                    for input, target in zip(inputs, targets):
+                        output, hx, cx = self.rnn(input, hx, cx)
+                        loss += criterion(output, target)
+
+                    loss.backward()
+                    optimizer.step()
+
+                    running_loss += loss.item()
+
+                print("Loss {:.4f}\n".format(running_loss / len(train_loder)))
+
+                if (epoch + 1) % 20 == 0:
+                    save_model("epoch_{}.pt".format(epoch + 1))
+
+    def train_rnn_layer(self, dataset):
         train_loder = DataLoader(dataset=dataset,
                                  batch_size=self.batch_size,
                                  shuffle=True,
@@ -50,16 +89,14 @@ class RNNTrainer:
 
             optimizer.zero_grad()
 
-            running_loss = 0
-            for inputs, targets in train_loder:
-                inputs = inputs.to(self.device)
-                targets = targets.to(self.device)
+            running_loss = []
+            for inputs, targets, lengths in train_loder:
+                inputs = inputs.cuda()
+                targets = targets.cuda()
 
-                loss = 0
-                hx, cx = self.rnn.init_states(batch_size=inputs.shape[1], device=self.device)
-                for input, target in zip(inputs, targets):
-                    output, hx, cx = self.rnn(input, hx, cx)
-                    loss += criterion(output, target)
+                h0, c0 = self.rnn.init_states(batch_size=inputs.shape[0], device=self.device)
+                output, hx, cx = self.rnn(inputs, h0, c0, lengths=lengths)
+                loss = criterion(output, targets)
 
                 loss.backward()
                 optimizer.step()
@@ -68,8 +105,7 @@ class RNNTrainer:
 
             print("Loss {:.4f}\n".format(running_loss / len(train_loder)))
 
-            if (epoch + 1) % 20 == 0:
-                save_model("epoch_{}.pt".format(epoch + 1))
+        save_model("layer_rnn_epochs_{}_loss_{}.pt".format(self.epochs, loss))
 
 
 if __name__ == '__main__':
@@ -86,5 +122,5 @@ if __name__ == '__main__':
                          epochs=args.epochs,
                          batch_size=args.batch_size,
                          lr=args.learning_rate)
-    trainer.init_rnn(hidden_size=args.hidden_size)
+    trainer.init_rnn(RNNLayerModel, hidden_size=args.hidden_size)
     trainer.train()
