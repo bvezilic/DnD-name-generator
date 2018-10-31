@@ -32,10 +32,10 @@ class RNNLayerModel(nn.Module):
         self.dropout = nn.Dropout(0.1)
         self.dense = nn.Linear(hidden_size, output_size)
 
-    def forward(self, inputs, hx, cx, lengths, batch_first=True):
-        inputs = pack_padded_sequence(inputs, lengths=lengths, batch_first=batch_first)
+    def forward(self, inputs, hx, cx, lengths):
+        inputs = pack_padded_sequence(inputs, lengths=lengths)
         outputs, (h_n, c_n) = self.lstm(inputs, (hx, cx))
-        pad_outputs, _ = pad_packed_sequence(outputs, padding_value=-1, batch_first=batch_first)
+        pad_outputs, _ = pad_packed_sequence(outputs, padding_value=-1)
         logits = self.dense(self.dropout(pad_outputs))
 
         return logits, h_n, c_n

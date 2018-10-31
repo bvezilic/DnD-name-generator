@@ -42,7 +42,7 @@ class RNNTrainer:
             train_loder = DataLoader(dataset=dataset,
                                      batch_size=self.batch_size,
                                      shuffle=True,
-                                     collate_fn=lambda batch: dataset.collate_fn(batch, pad=True))
+                                     collate_fn=dataset.collate_fn)
 
             criterion = nn.CrossEntropyLoss(ignore_index=-1)
             optimizer = RMSprop(self.rnn.parameters())
@@ -54,7 +54,7 @@ class RNNTrainer:
                 optimizer.zero_grad()
 
                 running_loss = 0
-                for inputs, targets in train_loder:
+                for inputs, targets, _ in train_loder:
                     inputs = inputs.to(self.device)
                     targets = targets.to(self.device)
 
@@ -89,21 +89,23 @@ class RNNTrainer:
 
             optimizer.zero_grad()
 
-            running_loss = []
+            epoch_loss, iteration = 0, 1
             for inputs, targets, lengths in train_loder:
                 inputs = inputs.cuda()
                 targets = targets.cuda()
 
-                h0, c0 = self.rnn.init_states(batch_size=inputs.shape[0], device=self.device)
+                h0, c0 = self.rnn.init_states(batch_size=inputs.shape[1], device=self.device)
                 output, hx, cx = self.rnn(inputs, h0, c0, lengths=lengths)
-                loss = criterion(output, targets)
+                loss = criterion(output.view(output.shape[0] * output.shape[1], -1),
+                                 targets.view(output.shape[0] * output.shape[1]))
 
                 loss.backward()
                 optimizer.step()
 
-                running_loss += loss.item()
+                epoch_loss += loss.item()
+                iteration += 1
 
-            print("Loss {:.4f}\n".format(running_loss / len(train_loder)))
+            print("Loss {:.4f}\n".format(epoch_loss / iteration))
 
         save_model("layer_rnn_epochs_{}_loss_{}.pt".format(self.epochs, loss))
 

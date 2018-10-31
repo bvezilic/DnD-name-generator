@@ -5,7 +5,7 @@ import string
 
 import numpy as np
 import torch
-from torch.nn.utils.rnn import pad_sequence, pack_sequence
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
 
@@ -70,6 +70,9 @@ class DnDCharacterNameDataset(Dataset):
 
         inputs = pad_sequence(inputs, padding_value=0, batch_first=True)
         targets = pad_sequence(targets, padding_value=-1, batch_first=True)
+
+        inputs = inputs.transpose(0, 1)
+        targets = targets.transpose(0, 1)
 
         return inputs, targets, lengths
 
