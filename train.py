@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 from torch.optim import RMSprop
 from torch.utils.data import DataLoader
@@ -9,120 +8,189 @@ from model import RNNCellModel, RNNLayerModel
 from utils import save_model
 
 
-class RNNTrainer:
-    def __init__(self, root_dir, lr=0.0005, epochs=500, batch_size=32):
+class Trainer:
+    def __init__(self, root_dir, hidden_size, lr, epochs, batch_size, device):
         self.root_dir = root_dir
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
+
+        # Training params
         self.lr = lr
         self.epochs = epochs
         self.batch_size = batch_size
 
+        # Model params
+        self.hidden_size = hidden_size
+
+        # Data params
         self.vocab = Vocabulary()
         self.races = Races()
         self.genders = Genders()
 
-        self.rnn = None
+        # Initialization
+        self.dataset = self.init_dataset()
+        self.train_loder = self.init_loader()
+        self.model = self.init_model()
+        self.criterion = self.init_criterion()
+        self.optimizer = self.init_optimizer()
 
-    def init_rnn(self, rnn_class, hidden_size):
-        self.rnn = rnn_class(input_size=len(self.vocab) + len(self.races) + len(self.genders),
-                             hidden_size=hidden_size,
-                             output_size=len(self.vocab))
-        self.rnn.to(self.device)
+    def init_dataset(self):
+        raise NotImplementedError
+
+    def init_loader(self):
+        raise NotImplementedError
+
+    def init_model(self):
+        raise NotImplementedError
+
+    def init_criterion(self):
+        raise NotImplementedError
+
+    def init_optimizer(self):
+        raise NotImplementedError
 
     def train(self):
-        dataset = DnDCharacterNameDataset(root_dir=self.root_dir,
-                                          name_transform=Compose([self.vocab, OneHot(self.vocab.size), ToTensor()]),
-                                          race_transform=Compose([self.races, OneHot(self.races.size), ToTensor()]),
-                                          gender_transform=Compose([self.genders, OneHot(self.genders.size), ToTensor()]),
-                                          target_transform=Compose([self.vocab, ToTensor()]))
+        raise NotImplementedError
 
-        if isinstance(self.rnn, RNNLayerModel):
-            self.train_rnn_layer(dataset)
-        else:
-            train_loder = DataLoader(dataset=dataset,
-                                     batch_size=self.batch_size,
-                                     shuffle=True,
-                                     collate_fn=dataset.collate_fn)
 
-            criterion = nn.CrossEntropyLoss(ignore_index=-1)
-            optimizer = RMSprop(self.rnn.parameters())
+class RNNCellTrainer(Trainer):
+    def __init__(self, root_dir, hidden_size=128, lr=0.0005, epochs=50, batch_size=512, device='gpu'):
+        super().__init__(root_dir, hidden_size, lr, epochs, batch_size, device)
 
-            for epoch in range(self.epochs):
-                print("Epoch {}/{}".format(epoch + 1, self.epochs))
-                print('-' * 10)
+    def init_dataset(self):
+        return DnDCharacterNameDataset(root_dir=self.root_dir,
+                                       name_transform=Compose([self.vocab, OneHot(self.vocab.size), ToTensor()]),
+                                       race_transform=Compose([self.races, OneHot(self.races.size), ToTensor()]),
+                                       gender_transform=Compose([self.genders, OneHot(self.genders.size), ToTensor()]),
+                                       target_transform=Compose([self.vocab, ToTensor()]))
 
-                optimizer.zero_grad()
+    def init_loader(self):
+        return DataLoader(dataset=self.dataset,
+                          batch_size=self.batch_size,
+                          shuffle=True,
+                          collate_fn=lambda batch: self.dataset.collate_fn(batch))
 
-                running_loss = 0
-                for inputs, targets, _ in train_loder:
-                    inputs = inputs.to(self.device)
-                    targets = targets.to(self.device)
+    def init_model(self):
+        model = RNNCellModel(input_size=self.vocab.size + self.races.size + self.genders.size,
+                             hidden_size=self.hidden_size,
+                             output_size=self.vocab.size)
+        model.to(self.device)
+        return model
 
-                    loss = 0
-                    hx, cx = self.rnn.init_states(batch_size=inputs.shape[1], device=self.device)
-                    for input, target in zip(inputs, targets):
-                        output, hx, cx = self.rnn(input, hx, cx)
-                        loss += criterion(output, target)
+    def init_criterion(self):
+        return nn.CrossEntropyLoss(ignore_index=-1)
 
-                    loss.backward()
-                    optimizer.step()
+    def init_optimizer(self):
+        return RMSprop(self.model.parameters())
 
-                    running_loss += loss.item()
-
-                print("Loss {:.4f}\n".format(running_loss / len(train_loder)))
-
-                if (epoch + 1) % 20 == 0:
-                    save_model("epoch_{}.pt".format(epoch + 1))
-
-    def train_rnn_layer(self, dataset):
-        train_loder = DataLoader(dataset=dataset,
-                                 batch_size=self.batch_size,
-                                 shuffle=True,
-                                 collate_fn=dataset.collate_fn)
-
-        criterion = nn.CrossEntropyLoss(ignore_index=-1)
-        optimizer = RMSprop(self.rnn.parameters())
-
+    def train(self):
         for epoch in range(self.epochs):
             print("Epoch {}/{}".format(epoch + 1, self.epochs))
             print('-' * 10)
 
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
 
-            epoch_loss, iteration = 0, 1
-            for inputs, targets, lengths in train_loder:
-                inputs = inputs.cuda()
-                targets = targets.cuda()
+            running_loss = 0
+            for inputs, targets, _ in self.train_loder:
+                batch_size = inputs.shape[1]
 
-                h0, c0 = self.rnn.init_states(batch_size=inputs.shape[1], device=self.device)
-                output, hx, cx = self.rnn(inputs, h0, c0, lengths=lengths)
-                loss = criterion(output.view(output.shape[0] * output.shape[1], -1),
-                                 targets.view(output.shape[0] * output.shape[1]))
+                inputs = inputs.to(self.device)
+                targets = targets.to(self.device)
+
+                loss = 0
+                hx, cx = self.model.init_states(batch_size=batch_size, device=self.device)
+                for input, target in zip(inputs, targets):
+                    output, hx, cx = self.model(input, hx, cx)
+                    loss += self.criterion(output, target)
 
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
+                running_loss += loss.item()
 
-                epoch_loss += loss.item()
-                iteration += 1
+            print("Loss {:.4f}\n".format(running_loss / len(self.train_loder)))
 
-            print("Loss {:.4f}\n".format(epoch_loss / iteration))
+        save_model(self.model, "rnn_cell_epoch_{}.pt".format(self.epochs))
 
-        save_model("layer_rnn_epochs_{}_loss_{}.pt".format(self.epochs, loss))
+
+class RNNLayerTrainer(Trainer):
+    def __init__(self, root_dir, hidden_size=128, lr=0.0005, epochs=50, batch_size=512, device='gpu'):
+        super().__init__(root_dir, hidden_size, lr, epochs, batch_size, device)
+
+    def init_dataset(self):
+        return DnDCharacterNameDataset(root_dir=self.root_dir,
+                                       name_transform=Compose([self.vocab, OneHot(self.vocab.size), ToTensor()]),
+                                       race_transform=Compose([self.races, OneHot(self.races.size), ToTensor()]),
+                                       gender_transform=Compose([self.genders, OneHot(self.genders.size), ToTensor()]),
+                                       target_transform=Compose([self.vocab, ToTensor()]))
+
+    def init_loader(self):
+        return DataLoader(dataset=self.dataset,
+                          batch_size=self.batch_size,
+                          shuffle=True,
+                          collate_fn=lambda batch: self.dataset.collate_fn(batch))
+
+    def init_model(self):
+        model = RNNLayerModel(input_size=self.vocab.size + self.races.size + self.genders.size,
+                              hidden_size=self.hidden_size,
+                              output_size=self.vocab.size)
+        model.to(self.device)
+        return model
+
+    def init_criterion(self):
+        return nn.CrossEntropyLoss(ignore_index=-1)
+
+    def init_optimizer(self):
+        return RMSprop(self.model.parameters())
+
+    def train(self):
+        for epoch in range(self.epochs):
+            print("Epoch {}/{}".format(epoch + 1, self.epochs))
+            print('-' * 10)
+
+            self.optimizer.zero_grad()
+
+            running_loss = 0
+            for inputs, targets, lengths in self.train_loder:
+                batch_size = inputs.shape[1]
+
+                inputs = inputs.to(self.device)  # shape: [T, B, *]
+                targets = targets.to(self.device)  # shape: [T, B]
+
+                h0, c0 = self.model.init_states(batch_size=batch_size, device=self.device)
+                output, hx, cx = self.model(inputs, h0, c0, lengths)
+
+                loss = self.criterion(output.view(-1, output.shape[-1]), targets.view(-1))
+                loss.backward()
+                self.optimizer.step()
+
+                running_loss += loss.item()
+
+            print("Loss {:.4f}\n".format(running_loss / len(self.train_loder)))
+
+        save_model(self.model, "rnn_layer_epoch_{}.pt".format(self.epochs))
 
 
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--epochs", default=500)
+    parser.add_argument("-e", "--epochs", default=100)
     parser.add_argument("-bs", "--batch_size", default=512)
     parser.add_argument("-hs", "--hidden_size", default=64)
-    parser.add_argument("-lr", "--learning_rate", default=0.0005)
+    parser.add_argument("-lr", "--learning_rate", default=0.0001)
+    parser.add_argument("-d", "--device", default="cuda", choices=["cpu", "cuda"])
+    parser.add_argument("-t", "--type", default="cell", choices=["cell", "layer"])
     args = parser.parse_args()
 
-    trainer = RNNTrainer(root_dir="./data",
-                         epochs=args.epochs,
-                         batch_size=args.batch_size,
-                         lr=args.learning_rate)
-    trainer.init_rnn(RNNLayerModel, hidden_size=args.hidden_size)
+    if args.type == "layer":
+        trainer = RNNLayerTrainer(root_dir="./data",
+                                  epochs=args.epochs,
+                                  batch_size=args.batch_size,
+                                  lr=args.learning_rate,
+                                  device=args.device)
+    else:
+        trainer = RNNCellTrainer(root_dir="./data",
+                                 epochs=args.epochs,
+                                 batch_size=args.batch_size,
+                                 lr=args.learning_rate,
+                                 device=args.device)
     trainer.train()

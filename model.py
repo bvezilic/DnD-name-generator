@@ -35,7 +35,7 @@ class RNNLayerModel(nn.Module):
     def forward(self, inputs, hx, cx, lengths):
         inputs = pack_padded_sequence(inputs, lengths=lengths)
         outputs, (h_n, c_n) = self.lstm(inputs, (hx, cx))
-        pad_outputs, _ = pad_packed_sequence(outputs, padding_value=-1)
+        pad_outputs, _ = pad_packed_sequence(outputs)
         logits = self.dense(self.dropout(pad_outputs))
 
         return logits, h_n, c_n

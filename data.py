@@ -66,7 +66,9 @@ class DnDCharacterNameDataset(Dataset):
 
         inputs, targets = zip(*batch)
         inputs = [torch.cat([sample['name'], sample['race'], sample['gender']], 1) for sample in inputs]
+
         lengths = [input.shape[0] for input in inputs]
+        lengths = torch.tensor(lengths)
 
         inputs = pad_sequence(inputs, padding_value=0, batch_first=True)
         targets = pad_sequence(targets, padding_value=-1, batch_first=True)
