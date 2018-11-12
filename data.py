@@ -91,7 +91,12 @@ class Races:
         return self.races.get(item)
 
     def __call__(self, items):
-        return [self.races.get(item) for item in items]
+        if isinstance(items, list):
+            return [self.races.get(item) for item in items]
+        elif isinstance(items, str):
+            return [self.races.get(items)]
+        else:
+            raise TypeError("Parameter `items` is of type {}, should be `list` or `str`".format(type(items)))
 
     @property
     def size(self):
@@ -100,7 +105,8 @@ class Races:
 
 class Genders:
     def __init__(self):
-        self.genders = {'male': 0, 'female': 1}
+        self.available_genders = ["male", "female"]
+        self.genders = dict(zip(self.available_genders, np.arange(len(self.available_genders))))
 
     def __getitem__(self, item):
         return self.genders.get(item)
@@ -109,7 +115,12 @@ class Genders:
         return len(self.genders)
 
     def __call__(self, items):
-        return [self.genders.get(item) for item in items]
+        if isinstance(items, list):
+            return [self.genders.get(item) for item in items]
+        elif isinstance(items, str):
+            return [self.genders.get(items)]
+        else:
+            raise TypeError("Parameter `items` is of type {}, should be `list` or `str`".format(type(items)))
 
     @property
     def size(self):
@@ -135,6 +146,10 @@ class Vocabulary:
     @property
     def size(self):
         return len(self)
+
+    @property
+    def start_letters(self):
+        return list(string.ascii_uppercase)
 
 
 class OneHot:
