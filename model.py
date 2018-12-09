@@ -7,6 +7,7 @@ class RNNCellModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         self.hidden_size = hidden_size
+
         self.lstm_cell = nn.LSTMCell(input_size, hidden_size)
         self.dropout = nn.Dropout(0.1)
         self.dense = nn.Linear(hidden_size, output_size)
@@ -28,6 +29,7 @@ class RNNLayerModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         self.hidden_size = hidden_size
+
         self.lstm = nn.LSTM(input_size, hidden_size)
         self.dropout = nn.Dropout(0.1)
         self.dense = nn.Linear(hidden_size, output_size)

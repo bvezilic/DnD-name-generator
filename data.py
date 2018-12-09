@@ -28,7 +28,7 @@ class DnDCharacterNameDataset(Dataset):
         for filename in glob.glob(osp.join(root_dir, '*.txt')):
             race, gender = osp.basename(osp.splitext(filename)[0]).split('_')
             with open(filename, 'r') as f:
-                names = f.read().replace(',', '').split()
+                names = [line.strip() for line in f]
                 for name in names:
                     self.train_data.append({'name': list(name),
                                             'race': [race] * len(name),
