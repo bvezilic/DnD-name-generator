@@ -138,10 +138,10 @@ class Vocabulary:
         return len(self.char2idx)
 
     def __getitem__(self, item):
-        return self.char2idx.get(item)
+        return self.get_idx(item)
 
     def __call__(self, chars):
-        return np.array([self.char2idx[char] for char in chars], dtype=np.int64)
+        return np.array([self.get_idx(char) for char in chars], dtype=np.int64)
 
     @property
     def size(self):
@@ -150,6 +150,12 @@ class Vocabulary:
     @property
     def start_letters(self):
         return list(string.ascii_uppercase)
+
+    def get_idx(self, char):
+        return self.char2idx.get(char)
+
+    def get_char(self, idx):
+        return self.idx2char.get(idx)
 
 
 class OneHot:

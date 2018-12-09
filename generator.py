@@ -31,21 +31,32 @@ class RNNCellGenerator(Generator):
         self.race_transform = Compose([self.races, OneHot(self.races.size), ToTensor()])
         self.gender_transform = Compose([self.genders, OneHot(self.genders.size), ToTensor()])
 
+    def _init_random_input(self):
+        """Helper function that initialize random letter, race and gender"""
+        letter = np.random.choice(self.vocab.start_letters)
+        race = np.random.choice(self.races.available_races)
+        gender = np.random.choice(self.genders.available_genders)
+
+        return letter, race, gender
+
+    def _transform_input(self, letter, race, gender):
+        """Helper function to transform input into tensors"""
+        letter_tensor = self.name_transform(letter).to(self.device)
+        race_tensor = self.race_transform(race).to(self.device)
+        gender_tensor = self.gender_transform(gender).to(self.device)
+
+        return letter_tensor, race_tensor, gender_tensor
+
     def generate(self, num_samples):
         with torch.no_grad():
             print("_" * 20)
             for _ in range(num_samples):
                 hx, cx = self.model.init_states(batch_size=1, device=self.device)
 
-                letter = np.random.choice(self.vocab.start_letters)
-                race = np.random.choice(self.races.available_races)
-                gender = np.random.choice(self.genders.available_genders)
+                letter, race, gender = self._init_random_input()
+                letter_t, race_t, gender_t = self._transform_input(letter, race, gender)
 
-                letter_tensor = self.name_transform(letter).to(self.device)
-                race_tensor = self.race_transform(race).to(self.device)
-                gender_tensor = self.gender_transform(gender).to(self.device)
-
-                input = torch.cat([letter_tensor, race_tensor, gender_tensor], 1)
+                input = torch.cat([letter_t, race_t, gender_t], 1)
                 outputs = [letter]
 
                 while True:
@@ -56,7 +67,7 @@ class RNNCellGenerator(Generator):
                     char = self.vocab.idx2char[index.item()]
                     outputs.append(char)
 
-                    input = torch.cat([sample, race_tensor, gender_tensor], 1)
+                    input = torch.cat([sample, race_t, gender_t], 1)
 
                     if char == '.' or len(outputs) == 50:
                         break
@@ -80,36 +91,49 @@ class RNNLayerGenerator(Generator):
         self.race_transform = Compose([self.races, OneHot(self.races.size), ToTensor()])
         self.gender_transform = Compose([self.genders, OneHot(self.genders.size), ToTensor()])
 
+    def _init_random_input(self):
+        """Helper function that initialize random letter, race and gender"""
+        letter = np.random.choice(self.vocab.start_letters)
+        race = np.random.choice(self.races.available_races)
+        gender = np.random.choice(self.genders.available_genders)
+
+        return letter, race, gender
+
+    def _transform_input(self, letter, race, gender):
+        """Helper function to transform input into tensors"""
+        letter_tensor = self.name_transform(letter).to(self.device)
+        race_tensor = self.race_transform(race).to(self.device)
+        gender_tensor = self.gender_transform(gender).to(self.device)
+
+        return letter_tensor, race_tensor, gender_tensor
+
+    def _expand_dims(self, *tensors):
+        """Add dimension along 0-axis to tensors"""
+        return [torch.unsqueeze(t, 0) for t in tensors]
+
     def generate(self, num_samples):
         with torch.no_grad():
             print("_" * 20)
             for _ in range(num_samples):
                 hx, cx = self.model.init_states(batch_size=1, device=self.device)
 
-                letter = np.random.choice(self.vocab.start_letters)
-                race = np.random.choice(self.races.available_races)
-                gender = np.random.choice(self.genders.available_genders)
+                letter, race, gender = self._init_random_input()
+                letter_t, race_t, gender_t = self._transform_input(letter, race, gender)
+                letter_t, race_t, gender_t = self._expand_dims(letter_t, race_t, gender_t)
 
-                letter_tensor = self.name_transform(letter).to(self.device)
-                race_tensor = self.race_transform(race).to(self.device)
-                gender_tensor = self.gender_transform(gender).to(self.device)
-
-                letter_tensor = torch.unsqueeze(letter_tensor, 0)
-                race_tensor = torch.unsqueeze(race_tensor, 0)
-                gender_tensor = torch.unsqueeze(gender_tensor, 0)
-
-                input = torch.cat([letter_tensor, race_tensor, gender_tensor], 2)
+                # Merge all input tensors
+                input = torch.cat([letter_t, race_t, gender_t], 2)
                 outputs = [letter]
 
                 while True:
-                    output, hx, cx = self.model(input, hx, cx, torch.tensor([1]))
+                    output, hx, cx = self.model(input, hx, cx, lengths=torch.tensor([1]))
 
                     sample = OneHotCategorical(logits=output).sample()
                     index = torch.argmax(sample)
-                    char = self.vocab.idx2char[index.item()]
+                    char = self.vocab.get_char(index.item())
                     outputs.append(char)
 
-                    input = torch.cat([sample, race_tensor, gender_tensor], 2)
+                    input = torch.cat([sample, race_t, gender_t], 2)
 
                     if char == '.' or len(outputs) == 50:
                         break
