@@ -30,10 +30,11 @@ class DnDCharacterNameDataset(Dataset):
             with open(filename, 'r') as f:
                 names = [line.strip() for line in f]
                 for name in names:
-                    self.train_data.append({'name': list(name),
-                                            'race': [race] * len(name),
-                                            'gender': [gender] * len(name)})
-                    self.target_data.append(list(name[1:]) + [end_char])
+                    if isinstance(name, str) and name is not "":
+                        self.train_data.append({'name': list(name),
+                                                'race': [race] * len(name),
+                                                'gender': [gender] * len(name)})
+                        self.target_data.append(list(name[1:]) + [end_char])
 
     def __len__(self):
         return len(self.train_data)
@@ -62,24 +63,34 @@ class DnDCharacterNameDataset(Dataset):
 
     @staticmethod
     def collate_fn(batch):
+        """
+        Prepares batch for model by sorting, concatenating and padding inputs.
+
+        :param batch: list of tuples [(train, target), ...]
+        :return:
+            inputs: Tensor with shape (max_length, batch_size, input_size)
+            targets: Tensor with shape (max_length, batch_size)
+            lengths: Tensor with shape (batch_size)
+        """
         batch = sorted(batch, key=lambda x: x[1].shape[0], reverse=True)
 
+        # Splits batch and concatenate input vectors
         inputs, targets = zip(*batch)
         inputs = [torch.cat([sample['name'], sample['race'], sample['gender']], 1) for sample in inputs]
 
+        # Get list of lengths per sequence
         lengths = [input.shape[0] for input in inputs]
         lengths = torch.tensor(lengths)
 
-        inputs = pad_sequence(inputs, padding_value=0, batch_first=True)
-        targets = pad_sequence(targets, padding_value=-1, batch_first=True)
-
-        inputs = inputs.transpose(0, 1)
-        targets = targets.transpose(0, 1)
+        # Padding
+        inputs = pad_sequence(inputs, padding_value=0)
+        targets = pad_sequence(targets, padding_value=-1)  # Specific value to be ignored during loss computation
 
         return inputs, targets, lengths
 
 
 class Races:
+    """Dictionary of indices for every race"""
     def __init__(self):
         self.available_races = ['human', 'elf', 'dwarf', 'halforc', 'halfling', 'tiefling', 'dragonborn']
         self.races = dict(zip(self.available_races, np.arange(len(self.available_races))))
@@ -104,6 +115,7 @@ class Races:
 
 
 class Genders:
+    """Dictionary of indices for every gender"""
     def __init__(self):
         self.available_genders = ["male", "female"]
         self.genders = dict(zip(self.available_genders, np.arange(len(self.available_genders))))
@@ -128,6 +140,7 @@ class Genders:
 
 
 class Vocabulary:
+    """Dictionary of indices for every character in vocabulary"""
     def __init__(self, end_char='.'):
         alphabet = string.ascii_letters + '-'
         self.char2idx = dict(zip(alphabet, range(1, len(alphabet) + 1)))
@@ -159,6 +172,7 @@ class Vocabulary:
 
 
 class OneHot:
+    """Performs One-hot encoding"""
     def __init__(self, size):
         self.size = size
 
@@ -169,6 +183,7 @@ class OneHot:
 
 
 class ToTensor:
+    """Converts data into Tensor"""
     def __init__(self, dtype=None):
         self.dtype = dtype
 

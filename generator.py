@@ -1,5 +1,3 @@
-import string
-
 import numpy as np
 import torch
 from torch.distributions import OneHotCategorical
@@ -10,6 +8,7 @@ from utils import load_model
 
 
 class Generator:
+    """Base Generator class that can load trained model and require every subclass to implement `generate` method"""
     def __init__(self, model_path, device="cpu"):
         self.model = load_model(model_path, device=device)
         self.device = device

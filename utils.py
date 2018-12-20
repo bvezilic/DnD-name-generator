@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import torch
 
 
-def save_model(rnn, model_name, device="cuda"):
+def save_model(rnn, model_name):
     os.makedirs("./models", exist_ok=True)
-    torch.save(rnn.to(device), os.path.join("models", model_name))
+    torch.save(rnn, os.path.join("models", model_name))
     print("Models saved on path: {}".format(os.path.join("models", model_name)))
 
 
