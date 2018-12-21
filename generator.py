@@ -140,7 +140,7 @@ class RNNLayerGenerator(Generator):
                 print("Start letter: {}, Race: {}, Gender: {}".format(letter, race, gender))
                 print("Generated sample: {}".format(''.join(map(str, outputs))))
 
-            print("_" * 20)
+            return ''.join(map(str, outputs))
 
 
 if __name__ == '__main__':

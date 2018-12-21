@@ -21,9 +21,11 @@ class Trainer:
         - init_criterion
         - init_optimizer
     """
-    def __init__(self, root_dir, hidden_size, lr, epochs, batch_size, device, logfile):
+    def __init__(self, root_dir, hidden_size, lr, epochs, batch_size, device, logfile, verbose=1):
         self.root_dir = root_dir
         self.device = device
+        self.verbose = verbose
+        self.logfile = logfile
 
         # Training params
         self.lr = lr
@@ -82,8 +84,9 @@ class RNNCellTrainer(Trainer):
                  epochs=50,
                  batch_size=512,
                  device='gpu',
-                 logfile='train_loss.log'):
-        super().__init__(root_dir, hidden_size, lr, epochs, batch_size, device, logfile)
+                 logfile='train_loss.log',
+                 verbose=1):
+        super().__init__(root_dir, hidden_size, lr, epochs, batch_size, device, logfile, verbose)
 
     def init_dataset(self):
         return DnDCharacterNameDataset(root_dir=self.root_dir,
@@ -116,10 +119,8 @@ class RNNCellTrainer(Trainer):
         return RMSprop(self.model.parameters())
 
     def run_train_loop(self):
+        print("Started training!")
         for epoch in range(self.epochs):
-            print("Epoch {}/{}".format(epoch + 1, self.epochs))
-            print('-' * 10)
-
             self.optimizer.zero_grad()
 
             running_loss = 0
@@ -141,12 +142,19 @@ class RNNCellTrainer(Trainer):
                 self.optimizer.step()
                 running_loss += loss.item()
 
+            # Logging and printing
             epoch_loss = running_loss / len(self.train_loder)
-            logging.info("Epoch: {}, Loss: {}".format(epoch + 1, epoch_loss))
-            print("Loss {:.4f}\n".format(epoch_loss))
+            if self.logfile:
+                logging.info("Epoch: {}, Loss: {}".format(epoch+1, epoch_loss))
 
+            if self.verbose == 1:
+                print("Epoch: {}, Loss {:.4f}".format(epoch+1, epoch_loss))
+
+            # Save model on specific epochs
             if epoch+1 in (1, 5, 10, 25):
                 save_model(self.model, "rnn_cell_epoch_{}.pt".format(epoch+1))
+
+        print("Finished training!")
 
 
 class RNNLayerTrainer(Trainer):
@@ -164,8 +172,9 @@ class RNNLayerTrainer(Trainer):
                  epochs=50,
                  batch_size=512,
                  device='gpu',
-                 logfile='train_loss.log'):
-        super().__init__(root_dir, hidden_size, lr, epochs, batch_size, device, logfile)
+                 logfile='train_loss.log',
+                 verbose=1):
+        super().__init__(root_dir, hidden_size, lr, epochs, batch_size, device, logfile, verbose)
 
     def init_dataset(self):
         return DnDCharacterNameDataset(root_dir=self.root_dir,
@@ -198,10 +207,8 @@ class RNNLayerTrainer(Trainer):
         return RMSprop(self.model.parameters())
 
     def run_train_loop(self):
+        print("Started training!")
         for epoch in range(self.epochs):
-            print("Epoch {}/{}".format(epoch + 1, self.epochs))
-            print('-' * 10)
-
             self.optimizer.zero_grad()
 
             running_loss = 0
@@ -220,12 +227,30 @@ class RNNLayerTrainer(Trainer):
 
                 running_loss += loss.item()
 
+            # Logging and printing
             epoch_loss = running_loss / len(self.train_loder)
-            logging.info("Epoch: {}, Loss: {}".format(epoch+1, epoch_loss))
-            print("Loss {:.4f}\n".format(epoch_loss))
+            if self.logfile:
+                logging.info("Epoch: {}, Loss: {}".format(epoch+1, epoch_loss))
 
+            if self.verbose == 1:
+                print("Epoch: {}, Loss {:.4f}".format(epoch+1, epoch_loss))
+
+            # Save model on specific epochs
             if epoch+1 in (1, 5, 10, 25, 50, 75, 100):
                 save_model(self.model, "rnn_layer_epoch_{}.pt".format(epoch+1))
+
+        print("Finished training!")
+
+
+class TrainerFactory:
+    factory = {
+        "cell": RNNCellTrainer,
+        "layer": RNNLayerTrainer
+    }
+
+    @classmethod
+    def get_trainer(cls, trainer_type, *args, **kwargs):
+        return cls.factory[trainer_type](args, kwargs)
 
 
 if __name__ == '__main__':
@@ -239,20 +264,15 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--device", default="cuda", choices=["cpu", "cuda"])
     parser.add_argument("-t", "--type", default="layer", choices=["cell", "layer"])
     parser.add_argument("-l", "--logfile", default="train_loss.log")
+    parser.add_argument("-v", "--verbose", default=1)
     args = parser.parse_args()
 
-    if args.type == "layer":
-        trainer = RNNLayerTrainer(root_dir="./data",
-                                  epochs=args.epochs,
-                                  batch_size=args.batch_size,
-                                  lr=args.learning_rate,
-                                  device=args.device,
-                                  logfile=args.logfile)
-    else:
-        trainer = RNNCellTrainer(root_dir="./data",
-                                 epochs=args.epochs,
-                                 batch_size=args.batch_size,
-                                 lr=args.learning_rate,
-                                 device=args.device,
-                                 logfile=args.logfile)
+    trainer = TrainerFactory.get_trainer(trainer_type=args.type,
+                                         root_dir="./data",
+                                         epochs=args.epochs,
+                                         batch_size=args.batch_size,
+                                         lr=args.learning_rate,
+                                         device=args.device,
+                                         logfile=args.logfile,
+                                         verbose=args.verbose)
     trainer.run_train_loop()
