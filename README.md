@@ -77,7 +77,8 @@ That's pretty much it, pretty straight-forward.
 1) Transform inputs into PackedSequence
 2) Run through the model
 3) Pad them back to Tensor
-4) Profit?
+4) ...
+5) Profit?
 
 #### loss ignore_index
 
@@ -86,10 +87,11 @@ This is something I haven't seen a lot of people do, and I am a bit confused why
 
 ### Performance evaluation
 
-Wow, this README has gotten quite fat... Okay, let's wrap it up with evaluation. There is a notebook that's going to show:
+Wow, this README has gotten quite fat... Okay, let's wrap it up with evaluation. There is a notebook that's going to show some actual and interesting results instead of wall-of-text explaining how I struggled with such simple task.
 
+Anyhow, what you can find there is:
 1) Statistics of the dataset
 2) Training of the model
 3) Generating samples during different stages of training and comparing them with the most similar names in the dataset
 
-That's everything I wanted to share, and may the dice ever be in your favor!
+That's everything I wanted to share, I can't believe you come all the way to the last line... Well, thank you and may the dice ever be in your favor! (Or Tensor shapes...)
