@@ -5,8 +5,10 @@ from torch.optim import RMSprop
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
+from config import *
 from data import DnDCharacterNameDataset, Vocabulary, OneHot, Genders, Races, ToTensor
 from model import RNNCellModel, RNNLayerModel
+from logger import Logger
 from utils import save_model
 
 
@@ -48,7 +50,7 @@ class Trainer:
         self.optimizer = self.init_optimizer()
 
         # Initialize logging
-        logging.basicConfig(filename=logfile, filemode='w', level=0, format="%(message)s")
+        self.logger = Logger(os.path.join(PROJECT_ROOT, logfile))
 
     def init_dataset(self):
         raise NotImplementedError
@@ -145,13 +147,13 @@ class RNNCellTrainer(Trainer):
             # Logging and printing
             epoch_loss = running_loss / len(self.train_loder)
             if self.logfile:
-                logging.info("Epoch: {}, Loss: {}".format(epoch+1, epoch_loss))
+                self.logger.log("Epoch: {}, Loss: {}".format(epoch+1, epoch_loss))
 
             if self.verbose == 1:
                 print("Epoch: {}, Loss {:.4f}".format(epoch+1, epoch_loss))
 
             # Save model on specific epochs
-            if epoch+1 in (1, 5, 10, 25):
+            if epoch + 1 in (1, 5, 10, 15) or epoch % 25 == 0:
                 save_model(self.model, "rnn_cell_epoch_{}.pt".format(epoch+1))
 
         print("Finished training!")
@@ -230,13 +232,13 @@ class RNNLayerTrainer(Trainer):
             # Logging and printing
             epoch_loss = running_loss / len(self.train_loder)
             if self.logfile:
-                logging.info("Epoch: {}, Loss: {}".format(epoch+1, epoch_loss))
+                self.logger.log("Epoch: {}, Loss: {}".format(epoch+1, epoch_loss))
 
             if self.verbose == 1:
                 print("Epoch: {}, Loss {:.4f}".format(epoch+1, epoch_loss))
 
             # Save model on specific epochs
-            if epoch+1 in (1, 5, 10, 25, 50, 75, 100):
+            if epoch+1 in (1, 5, 10, 15) or epoch % 25 == 0:
                 save_model(self.model, "rnn_layer_epoch_{}.pt".format(epoch+1))
 
         print("Finished training!")
@@ -257,9 +259,9 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--epochs", default=100)
+    parser.add_argument("-e", "--epochs", default=300)
     parser.add_argument("-bs", "--batch_size", default=128)
-    parser.add_argument("-hs", "--hidden_size", default=64)
+    parser.add_argument("-hs", "--hidden_size", default=128)
     parser.add_argument("-lr", "--learning_rate", default=0.0001)
     parser.add_argument("-d", "--device", default="cuda", choices=["cpu", "cuda"])
     parser.add_argument("-t", "--type", default="layer", choices=["cell", "layer"])
