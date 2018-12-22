@@ -94,4 +94,4 @@ Anyhow, what you can find there is:
 2) Training of the model
 3) Generating samples during different stages of training and comparing them with the most similar names in the dataset
 
-That's everything I wanted to share, I can't believe you come all the way to the last line... Well, thank you and may the dice ever be in your favor! (Or Tensor shapes...)
+That's everything I wanted to share, I can't believe you came all the way to the last line... Well, thank you and may the dice ever be in your favor!
