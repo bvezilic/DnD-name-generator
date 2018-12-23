@@ -87,7 +87,7 @@ This is something I haven't seen a lot of people do, and I am a bit confused why
 
 ### Performance evaluation
 
-Wow, this README has gotten quite fat... Okay, let's wrap it up with evaluation. There is a notebook that's going to show some actual and interesting results instead of wall-of-text explaining how I struggled with such simple task.
+Wow, this README has gotten quite fat... Okay, let's wrap it up with evaluation. There is a [notebook](https://github.com/bvezilic/DnD-name-generator/blob/master/notebooks/evaluation.ipynb) that's going to show some actual and interesting results instead of wall-of-text explaining how I struggled with such simple task.
 
 Anyhow, what you can find there is:
 1) Statistics of the dataset
