@@ -5,11 +5,13 @@ import torch
 from config import PROJECT_ROOT
 
 
-def save_model(rnn, model_name):
+def save_model(rnn, model_name, verbose=1):
     models_dir = os.path.join(PROJECT_ROOT, "models")
     os.makedirs(models_dir, exist_ok=True)
     torch.save(rnn, os.path.join(models_dir, model_name))
-    print("Models saved on path: {}".format(os.path.join("models", model_name)))
+
+    if verbose:
+        print("Models saved on path: {}".format(os.path.join("models", model_name)))
 
 
 def load_model(path, device="cuda"):
