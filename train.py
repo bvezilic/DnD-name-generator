@@ -238,8 +238,8 @@ class RNNLayerTrainer(Trainer):
                 print("Epoch: {}, Loss {:.4f}".format(epoch+1, epoch_loss))
 
             # Save model on specific epochs
-            if epoch+1 in (1, 5, 10, 15) or epoch % 25 == 0:
-                save_model(self.model, "rnn_layer_epoch_{}.pt".format(epoch+1), self.verbose)
+            if epoch+1 in (1, 5, 10, 15) or (epoch+1) % 25 == 0:
+                save_model(self.model, "rnn_layer_epoch_{}.pt".format(epoch+1))
 
         print("Finished training!")
 

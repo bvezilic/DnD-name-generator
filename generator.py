@@ -78,8 +78,10 @@ class RNNCellGenerator(Generator):
 
 
 class RNNLayerGenerator(Generator):
-    def __init__(self, model_path, device="cpu"):
+    def __init__(self, model_path, device="cpu", max_len=50, verbose=1):
         super().__init__(model_path, device)
+        self.max_len = max_len
+        self.verbose = verbose
 
         self.vocab = Vocabulary()
         self.races = Races()
@@ -110,37 +112,50 @@ class RNNLayerGenerator(Generator):
         """Add dimension along 0-axis to tensors"""
         return [torch.unsqueeze(t, 0) for t in tensors]
 
-    def generate(self, num_samples):
+    def sample(self, letter, race, gender):
+        """Sample name from start letter, race and gender"""
         with torch.no_grad():
-            print("_" * 20)
-            for _ in range(num_samples):
-                hx, cx = self.model.init_states(batch_size=1, device=self.device)
+            assert letter in self.vocab.start_letters, "Invalid letter"
+            assert race in self.races.available_races, "Invalid race"
+            assert gender in self.genders.available_genders, "Invalid gender"
 
-                letter, race, gender = self._init_random_input()
-                letter_t, race_t, gender_t = self._transform_input(letter, race, gender)
-                letter_t, race_t, gender_t = self._expand_dims(letter_t, race_t, gender_t)
+            # Prepare inputs
+            letter_t, race_t, gender_t = self._transform_input(letter, race, gender)
+            letter_t, race_t, gender_t = self._expand_dims(letter_t, race_t, gender_t)
 
-                # Merge all input tensors
-                input = torch.cat([letter_t, race_t, gender_t], 2)
-                outputs = [letter]
+            # Merge all input tensors
+            input = torch.cat([letter_t, race_t, gender_t], 2)
+            outputs = [letter]
 
-                while True:
-                    output, hx, cx = self.model(input, hx, cx, lengths=torch.tensor([1]))
+            # Initialize hidden states
+            hx, cx = self.model.init_states(batch_size=1, device=self.device)
 
-                    sample = OneHotCategorical(logits=output).sample()
-                    index = torch.argmax(sample)
-                    char = self.vocab.get_char(index.item())
-                    outputs.append(char)
+            while True:
+                output, hx, cx = self.model(input, hx, cx, lengths=torch.tensor([1]))
 
-                    input = torch.cat([sample, race_t, gender_t], 2)
+                sample = OneHotCategorical(logits=output).sample()
+                index = torch.argmax(sample)
+                char = self.vocab.get_char(index.item())
 
-                    if char == '.' or len(outputs) == 50:
-                        break
+                if char == '.' or len(outputs) == self.max_len:
+                    break
 
-                print("Start letter: {}, Race: {}, Gender: {}".format(letter, race, gender))
-                print("Generated sample: {}".format(''.join(map(str, outputs))))
+                outputs.append(char)
+                input = torch.cat([sample, race_t, gender_t], 2)
 
-            return ''.join(map(str, outputs))
+            name = ''.join(map(str, outputs))
+            return name
+
+    def generate(self, num_samples):
+        """Sample random names"""
+        gen_names = []
+        for _ in range(num_samples):
+            letter, race, gender = self._init_random_input()
+
+            gen_name = self.sample(letter, race, gender)
+            gen_names.append([gen_name, race, gender])
+
+        return gen_names
 
 
 if __name__ == '__main__':
