@@ -252,7 +252,7 @@ class TrainerFactory:
 
     @classmethod
     def get_trainer(cls, trainer_type, *args, **kwargs):
-        return cls.factory[trainer_type](args, kwargs)
+        return cls.factory[trainer_type](*args, **kwargs)
 
 
 if __name__ == '__main__':
